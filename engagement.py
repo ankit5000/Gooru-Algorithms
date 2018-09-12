@@ -25,6 +25,7 @@ w = 0.3
 def getEngagement(conn,conn2,activity_id):
             cur=conn.cursor()
             cur2 = conn2.cursor()
+	    # find all the competencies which have this resource
             cur2.execute("select taxonomy from deepend_abt where activity_id = '{}'".format(activity_id))
             #print  cur2.fetchall()[0][0].keys()
 	    competency = []
@@ -37,8 +38,10 @@ def getEngagement(conn,conn2,activity_id):
                 #mq = "select distinct(resource_id) from ds_master where collection_id in ( select collection_id from competency_collection_map where competency_code = '{}')".format(m);
 		mq = "select distinct(activity_id) from deepend_abt where taxonomy->'{}' is NOT NULL".format(m);
                 cur2.execute(mq)
+		# reslist will contain all those resources which have this competency(m)
                 reslist = [items[0] for items in cur2.fetchall()]
                 cur.execute("select sum(reaction) from ds_master where resource_id = '{}' group by resource_id".format(activity_id))
+		# reac is the vector of all reaction scores
                 reac = [items[0] for items in cur.fetchall()]
                 maxreacq = 'select sum(reaction) from ds_master where resource_id in (\'' + '\',\''.join(map(str, reslist)) + '\') group by resource_id';
 
@@ -80,7 +83,8 @@ def getEngagement(conn,conn2,activity_id):
             
 def calculateEngagement( conn,conn2) :
     cur = conn2.cursor()
-    cur.execute("select distinct(activity_id) from deepend_abt limit 5")
+    # getting original_id from deepend_abt
+    cur.execute("select distinct(activity_id) from deepend_abt limit 125")
     resource = cur.fetchall()
 	
     csv_file="/goorulabs/relevance/testing_engagement_score.csv"
@@ -94,7 +98,7 @@ def calculateEngagement( conn,conn2) :
             json_obj=getEngagement(conn,conn2,p[0])
 	    print json_obj
             #writer.writerow([p[0], json.loads(json.dumps(json_obj))])
-        print("You're done! Output written to engagement_score.csv")
+        print("You're done! Output written to testing_engagement_score.csv")
 
 
 myConnection = psycopg2.connect( host=hostname, user=username, password = password,  dbname=database)
