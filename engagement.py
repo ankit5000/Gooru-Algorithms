@@ -13,7 +13,7 @@ username = Config.get("datascopedb","username")
 password = Config.get("datascopedb","password")
 database = Config.get("datascopedb","database")
 
-
+# nucleus for accessing the deepend_abt
 hostname2 = Config.get("nucleus","hostname")
 username2 = Config.get("nucleus","username")
 password2 = Config.get("nucleus","password")
