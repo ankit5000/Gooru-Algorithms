@@ -1,3 +1,4 @@
+
 import psycopg2
 import csv
 import configparser
@@ -6,25 +7,41 @@ import json
 Config = configparser.ConfigParser()
 Config.read("../Relevance/config.ini")
 
-#get database info from config file
 hostname = Config.get("deepend","hostname")
 username = Config.get("deepend","username")
 password = Config.get("deepend","password")
 database = Config.get("deepend","database")
 
 
+hostname2 = Config.get("nucleus","hostname")
+username2 = Config.get("nucleus","username")
+password2 = Config.get("nucleus","password")
+database2 = Config.get("nucleus","database")
+
 w = 0.3
 
-def getEngagement(conn,activity_id):
-            cur=conn.cursor()
+def getEngagement(conn,conn2,original_id):
+        cur = conn.cursor()
+        cur2 = conn2.cursor()
+        # find the mapping of all copied_ids from content
+        cur2.execute("select id from content where original_content_id =" + "'{}'".format(original_id) )
+        copied_ids = [items[0] for items in cur2.fetchall()]
+        # print copied_ids
+        # competencies will store the pair of (engagement score, number of scores) for every competency 
+        competencies = {}
+        for activity_id in copied_ids:
+        	# select all competencies where this activity_id is used
             cur.execute("select distinct(competency_code) from competency_collection_map where collection_id in (select collection_id from ds_master where resource_id = '{}')".format(activity_id))
             competency = [items[0] for items in cur.fetchall()]
+            # print competency
             reslist = []
             res = []
             eng_list = []
+            #iterate over all the competencies
             for m in competency:
                 mq = "select distinct(resource_id) from ds_master where collection_id in ( select collection_id from competency_collection_map where competency_code = '{}')".format(m);
                 cur.execute(mq)
+                # all the resources which use this competency
                 reslist = [items[0] for items in cur.fetchall()]
                 cur.execute("select sum(reaction) from ds_master where resource_id = '{}' group by resource_id".format(activity_id))
                 reac = [items[0] for items in cur.fetchall()]
@@ -58,30 +75,42 @@ def getEngagement(conn,activity_id):
 
                 engagement = w*view_L + (1-w) * reaction_L
                 eng_list.append(engagement)
-            json_array = [{competency[i]: eng_list[i]} for i in range(len(competency))]
-            json_obj = {}
-            json_obj[activity_id] = json_array
-            print("obj: ", json_obj)
-            return json_obj
-            
-def calculateEngagement( conn ) :
-    cur = conn.cursor()
-    cur.execute("select distinct(resource_id) from ds_master")
+            for i in range(len(competency)):
+                if competency[i] in competencies:
+                    competencies[competency[i]][0] += eng_list[i]
+                    competencies[competency[i]][1] += 1
+                else:
+                    competencies[competency[i]] = [eng_list[i], 1]
+            # print competencies
+        # store the result    
+        fin_ans = {}
+        for key, value in competencies.items():
+            fin_ans[key] = value[0]/value[1]
+        if fin_ans:
+            print("original_id: ",  fin_ans)
+        return fin_ans
+
+def calculateEngagement( conn,conn2) :
+    cur = conn2.cursor()
+    cur.execute("select distinct(activity_id) from deepend_abt")
     resource = cur.fetchall()
-	
-    csv_file="/goorulabs/relevance/engagement_score.csv"
+    # json_obj=getEngagement(conn,conn2,"b1ca9fcc-1a44-492a-9802-4a2ca909080a")
+    csv_file="/goorulabs/relevance/testing_engagement_score.csv"
     with open(csv_file, "w") as output:
         writer = csv.writer(output, lineterminator='\n')
         writer.writerow(['Resource ID', 'Engagement'])
-    
+
         for p in resource:
             if p[0] == None:
                 continue
-            json_obj=getEngagement(conn,p[0])
+            json_obj=getEngagement(conn,conn2,p[0])
             writer.writerow([p[0], json.loads(json.dumps(json_obj))])
+	    # print json_obj
         print("You're done! Output written to engagement_score.csv")
 
 
 myConnection = psycopg2.connect( host=hostname, user=username, password = password,  dbname=database)
-calculateEngagement( myConnection )
+myConnection2 = psycopg2.connect( host=hostname2, user=username2, password = password2,  dbname=database2)
+calculateEngagement( myConnection, myConnection2)
 myConnection.close()
+myConnection2.close()
