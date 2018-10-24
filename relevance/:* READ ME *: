@@ -1,0 +1,22 @@
+/* READ ME */
+Description of all the files for calculating relevance score
+1) config.ini - contains database configuration information such as hostname, database name, username, password
+
+2) create_ds_master.sql - SQL script for creating ds_master table in deepend database
+
+3) create_competency_collection_map.sql - SQL script for creating competency_collection_map table in deepend database
+
+4) start.sh - contains commands for getting data from datascopedb, storing it in a csv file, modifying the csv file, storing data from csv file to deepend databse, calling python script to calculate relevance and load relevance into deepend_abt table in nucleus database
+
+5) modify.csv - removes unnecessary columns from ds_master.csv and competency_collection_map.csv for storing the data in deepend database tables
+
+6) relevance.py - calculates relevance score for resource by taking data from deepend database and storing the score in relevance_score.csv
+
+7) relevance_load.py - reads relevance_score.csv file and loads the relevance score in deepend_abt table in nucleus database
+
+8) data/ - contains all the csv files generated
+
+
+Instructions on How to Run:
+Run start.sh file
+Enter the password for datascopedb and nucleus database(when asked)
